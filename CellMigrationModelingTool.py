@@ -4,104 +4,131 @@ import pandas as pd
 from scipy.stats import levy
 
 class point:
-    def __init__(self, xyz = (None, None, None), spherical = (None, None, None), t = None):
-        self.__xyz = xyz
-        self.__spherical = spherical
+    def __init__(self, xyz = (None, None, None), rpa = (None, None, None), t = None):
+        self._xyz = xyz
+        self._rpa = rpa
     
     @property
     def x(self):
-        return self.__xyz[0]
+        return self._xyz[0]
     
     @property
     def y(self):
-        return self.__xyz[1]
+        return self._xyz[1]
     
     @property
     def z(self):
-        return self.__xyz[2]
+        return self._xyz[2]
     
     @property
     def xyz(self):
-        return self.__xyz
+        return self._xyz
     
     @property
-    def mag(self):
-        return self.__spherical[0]
+    def radius(self):
+        return self._rpa[0]
     
     @property
     def polar_angle(self):
-        return self.__spherical[1]
+        return self._rpa[1]
     
     @property
     def azimuthal_angle(self):
-        return self.__spherical[2]
+        return self._rpa[2]
     
     @property
-    def spherical(self):
-        return self.__spherical
+    def rpa(self):
+        return self._rpa
     
     @x.setter
     def x(self, x):
-        xyz = np.array(self.__xyz)
+        xyz = np.array(self._xyz)
         xyz[xyz==None] = 0
         xyz[0] = x
-        self.__xyz = tuple(xyz)
-        self.__shperical = spherical(self.__xyz)
+        self._xyz = tuple(xyz)
+        self._rpa = self.cartesian2spherical(self._xyz)
         
     @y.setter
     def y(self, y):
-        xyz = np.array(self.__xyz)
+        xyz = np.array(self._xyz)
         xyz[xyz==None] = 0
         xyz[1] = y
-        self.__xyz = tuple(xyz)
-        self.__shperical = spherical(self.__xyz)
+        self._xyz = tuple(xyz)
+        self._rpa = self.cartesian2spherical(self._xyz)
         
     @z.setter
-    def x(self, z):
-        xyz = np.array(self.__xyz)
+    def z(self, z):
+        xyz = np.array(self._xyz)
         xyz[xyz==None] = 0
         xyz[2] = z
-        self.__xyz = tuple(xyz)
-        self.__shperical = spherical(self.__xyz)
-    
-    @mag.setter
-    def mag(self, mag):
-        
-        
-    @spherical.setter
-    def spherical(self, xyz):
-        x, y, z = xyz[0], xyz[1], xyz[2]
-        magnitude = np.sqrt(x**2 + y**2 + z**2)
-        if magnitude == 0:
-            polar_angle = None
-            azimuthal_angle = None
-        elif x == 0:
-            azimuthal_angle = None
-            polar_angle = np.arccos(z/magnitude)
-        else:
-            polar_angle = np.arccos(z/magnitude)
-            azimuthal_angle = np.arctan(y/x)
-        self.__spherical = (magnitude, polar_angle, azimuthal_angle)
+        self._xyz = tuple(xyz)
+        self._rpa = self.cartesian2spherical(self._xyz)
     
     @xyz.setter
-    def xyz(self, spherical):
-        magnitude = spherical[0]
-        polar_angle = spherical[1]
-        azimuthal_angle = spherical[2]
-        x = magnitude * np.sin(polar_angle) * np.cos(azimuthal_angle)
-        y = magnitude * np.sin(polar_angle) * np.sin(azimuthal_angle)
-        z = magnitude * np.cos(polar_angle)
-        self.__xyz = (x, y, z)
-        return self.__xyz
-            
+    def xyz(self, xyz):
+        self._xyz = xyz
+        self._rpa = self.cartesian2spherical(self._xyz)
+    
+    @radius.setter
+    def radius(self, radius):
+        rpa = np.array(self._rpa)
+        rpa[rpa==None] = 0
+        rpa[0] = radius
+        self._rpa = tuple(rpa)
+        self._xyz = self.spherical2cartesian(self._rpa)
+        
+    @polar_angle.setter
+    def polar_angle(self, polar_angle):
+        rpa = np.array(self._rpa)
+        rpa[rpa==None] = 0
+        rpa[1] = polar_angle
+        self._rpa = tuple(rpa)
+        self._xyz = self.spherical2cartesian(self._rpa)
+        
+    @azimuthal_angle.setter
+    def azimuthal_angle(self, azimuthal_angle):
+        rpa = np.array(self._rpa)
+        rpa[rpa==None] = 0
+        rpa[2] = azimuthal_angle
+        self._rpa = tuple(rpa)
+        self._xyz = self.spherical2cartesian(self._rpa)
+
+        
+    @rpa.setter
+    def rpa(self, rpa):
+        self._rpa = rpa
+        self._xyz = self.spherical2cartesian(self._rpa)
+    
+    def cartesian2spherical(self, xyz):
+        x, y, z = xyz[0], xyz[1], xyz[2]
+        radius = np.sqrt(x**2 + y**2 + z**2)
+        if radius == 0:
+            return (0,0,0)
+        polar_angle = np.arccos(z/radius)
+        if polar_angle == 0:
+            return (radius,0,0)
+        azimuthal_angle = np.arccos(x/(radius*np.sin(polar_angle)))
+        #azimuthal_angle = np.arctan(y/x)
+        return (radius, polar_angle, azimuthal_angle)
+        
+    
+    def spherical2cartesian(self, rpa):
+        radius = rpa[0]
+        polar_angle = rpa[1]
+        azimuthal_angle = rpa[2]
+        x = radius * np.sin(polar_angle) * np.cos(azimuthal_angle)
+        y = radius * np.sin(polar_angle) * np.sin(azimuthal_angle)
+        z = radius * np.cos(polar_angle)
+        return (x, y ,z)
 
             
 class vector:
     def __init__(self, mag, polarangle, azimuthalangle, start, end):
+        pass
 
-        
+
 class trajectory:
-    def __init__(points = [], vectors = [], start = point(x = 0, y = 0), timestep = 1):
+    def __init__(points = [], vectors = [], start = "hallo", timestep = 1):
         pass
     
     
@@ -115,14 +142,9 @@ class LevyFlight:
         self.len_tracks = len_tracks
         self.tracks = []
     def run(self):
-        start_pos = 
+        start_pos = 1
         direction = np.random.random_sample(size = self.len_tracks) * 2* np.pi
         stepsize = levy.rvs(self.loc,self.scale,size = self.len_tracks)
         
-LF = LevyFlight(10)
-print(LF.repeats)
-print(LF.tracks)
-x = np.linspace(0, 20, 100) 
-y1 = levy .pdf(x, 1, 3) 
-y2 = levy .pdf(x, 0, 4) 
-plt.plot(x, y1, "*", x, y2, "r--") 
+p = point()
+p.x = 4
