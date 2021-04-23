@@ -107,7 +107,11 @@ class point:
         polar_angle = np.arccos(z/radius)
         if polar_angle == 0:
             return (radius,0,0)
-        azimuthal_angle = np.arccos(x/(radius*np.sin(polar_angle)))
+        if y >=0:
+            azimuthal_angle = np.arctan2(y,x)
+        else:
+            azimuthal_angle = np.arctan2(y,x) + 2 * np.pi
+        #azimuthal_angle = np.arcsin(y/(radius*np.sin(polar_angle)))
         #azimuthal_angle = np.arctan(y/x)
         return (radius, polar_angle, azimuthal_angle)
         
@@ -146,5 +150,4 @@ class LevyFlight:
         direction = np.random.random_sample(size = self.len_tracks) * 2* np.pi
         stepsize = levy.rvs(self.loc,self.scale,size = self.len_tracks)
         
-p = point()
-p.x = 4
+
