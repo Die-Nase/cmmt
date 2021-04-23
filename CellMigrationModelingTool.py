@@ -4,9 +4,12 @@ import pandas as pd
 from scipy.stats import levy
 
 class point:
-    def __init__(self, xyz = (None, None, None), rpa = (None, None, None), t = None):
+    def __init__(self, xyz = (None, None, None), rpa = (None, None, None),
+                 t = None, n = None):
         self._xyz = xyz
         self._rpa = rpa
+        self._t = t
+        self._n = n
     
     @property
     def x(self):
@@ -127,8 +130,27 @@ class point:
 
             
 class vector:
-    def __init__(self, mag, polarangle, azimuthalangle, start, end):
-        pass
+    def __init__(self, mpa = (None, None, None), startend = (point(), point()), dt = None):
+        self._mpa = mpa
+        self._start = startend[0]
+        self._end = startend[1]
+        
+    @property
+    def magnitude(self):
+        return self._mpa[0]
+    @property
+    def polar_angle(self):
+        return self._mpa[1]
+    @property
+    def azimuthal_angle(self):
+        return self._mpa[2]
+    @property
+    def start(self):
+        return self._start
+    @property
+    def end(self):
+        return self._end
+    
 
 
 class trajectory:
