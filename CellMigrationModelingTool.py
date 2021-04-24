@@ -1,11 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import datetime
 from scipy.stats import levy
 
 class point:
     def __init__(self, xyz = (None, None, None), rpa = (None, None, None),
-                 t = None, n = None):
+                 t = datetime.datetime.now(), n = None):
         self._xyz = xyz
         self._rpa = rpa
         self._t = t
@@ -42,6 +43,14 @@ class point:
     @property
     def rpa(self):
         return self._rpa
+    
+    @property
+    def t(self):
+        return self._t
+    
+    @property 
+    def n(self):
+        return self._n
     
     @x.setter
     def x(self, x):
@@ -96,12 +105,19 @@ class point:
         self._rpa = tuple(rpa)
         self._xyz = self.spherical2cartesian(self._rpa)
 
-        
     @rpa.setter
     def rpa(self, rpa):
         self._rpa = rpa
         self._xyz = self.spherical2cartesian(self._rpa)
     
+    @t.setter
+    def t(self, timestamp):
+        self._t = timestamp
+    
+    @n.setter
+    def n(self, point_number):
+        self._n = point_number
+        
     def cartesian2spherical(self, xyz):
         x, y, z = xyz[0], xyz[1], xyz[2]
         radius = np.sqrt(x**2 + y**2 + z**2)
@@ -117,7 +133,6 @@ class point:
         #azimuthal_angle = np.arcsin(y/(radius*np.sin(polar_angle)))
         #azimuthal_angle = np.arctan(y/x)
         return (radius, polar_angle, azimuthal_angle)
-        
     
     def spherical2cartesian(self, rpa):
         radius = rpa[0]
@@ -130,11 +145,22 @@ class point:
 
             
 class vector:
-    def __init__(self, mpa = (None, None, None), startend = (point(), point()), dt = None):
+    def __init__(self, mpa = (None, None, None), startend = (point(), point())):
         self._mpa = mpa
         self._start = startend[0]
         self._end = startend[1]
-        
+        self._dt = self._end.t - self._start.t
+        # if self._start.n == None and self._end.n == None:
+        #     self._start.n = 1
+        #     self._end.n = 2
+        # elif self._end.n == None:
+        #     self._start.n = self._end.n - 1
+        # elif self._start.n == None:
+        #     self._end.n = self._start.n + 1
+    @property
+    def mpa(self):
+        return self._mpa
+    
     @property
     def magnitude(self):
         return self._mpa[0]
@@ -150,7 +176,51 @@ class vector:
     @property
     def end(self):
         return self._end
+    @property
+    def dt(self):
+        return self._dt
+    @property
+    def velocity(self):
+        return self._mpa[0]/self._dt.seconds
     
+    @start.setter
+    def start(self, start):
+        self._start = start
+        if any(self._end.xyz) == None and any(self._mpa) == None:
+            self._end(xyz = (0,0,0))
+            self._mpa = self.start_end2mpa()
+        elif any(self._mpa) == None:
+            self._mpa = self.start_end2mpa()
+
+    @end.setter
+    def end(self, end):
+        self._end = end
+        if any(self._start.xyz) == None and any(self._mpa) == None:
+            self._start(xyz = (0,0,0))
+            self._mpa = self.start_end2mpa()
+        elif any(self._mpa) == None:
+            self._mpa = self.start_end2mpa()
+            
+    @mpa.setter
+    def mpa(self, mpa):
+        self._mpa = mpa
+        if any(self._start.xyz) == None and any(self._end.xyz) == None:
+            self._start.xyz = (0,0,0)
+            self._end = self.start_mpa2end()
+        elif any(self._start.xyz) == None:
+            self._start = self.end_mpa2start()
+        elif any(self._end.xyz) == None:
+            self._end = self.start_mpa2end()
+            
+                
+    def start_mpa2end():
+        pass
+    
+    def end_mpa2start():
+        pass
+    
+    def start_end2rpa():
+        pass
 
 
 class trajectory:
