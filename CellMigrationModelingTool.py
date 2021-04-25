@@ -145,22 +145,21 @@ class point:
 
             
 class vector:
-    def __init__(self, mpa = (None, None, None), startend = (point(), point())):
+    def __init__(self, mpa = (None, None, None), start = point(), end = point()):
         self._mpa = mpa
-        self._start = startend[0]
-        self._end = startend[1]
+        self._start = start
+        self._end = end
         self._dt = self._end.t - self._start.t
-        # if self._start.n == None and self._end.n == None:
-        #     self._start.n = 1
-        #     self._end.n = 2
-        # elif self._end.n == None:
-        #     self._start.n = self._end.n - 1
-        # elif self._start.n == None:
-        #     self._end.n = self._start.n + 1
+        if all(self._start.xyz) and all(self._end.xyz):
+            self._mpa = self.start_end2mpa(self._start, self._end)
+        elif(all(self._start.xyz) and all (self._mpa)):
+            self._end.xyz = self.start_mpa2end(self._start, self._mpa)
+        elif(all(self._end.xyz) and all(self._mpa)):
+            self.start.xyz = self.end_mpa2start(self._end, self._mpa)
+
     @property
     def mpa(self):
         return self._mpa
-    
     @property
     def magnitude(self):
         return self._mpa[0]
@@ -177,6 +176,15 @@ class vector:
     def end(self):
         return self._end
     @property
+    def dx(self):
+        return self._end.x - self._start.x
+    @property
+    def dy(self):
+        return self._end.y - self._start.y
+    @property
+    def dz(self):
+        return self._end.z - self._start.z
+    @property
     def dt(self):
         return self._dt
     @property
@@ -186,41 +194,45 @@ class vector:
     @start.setter
     def start(self, start):
         self._start = start
-        if any(self._end.xyz) == None and any(self._mpa) == None:
-            self._end(xyz = (0,0,0))
-            self._mpa = self.start_end2mpa()
-        elif any(self._mpa) == None:
-            self._mpa = self.start_end2mpa()
+        if all(self._end.xyz):
+            self._mpa = self.start_end2mpa(self._start, self._end)
+        else:
+            self._end.xyz = (0,0,0)
+            self._mpa = self.start_end2mpa(self._start, self._end)
 
     @end.setter
     def end(self, end):
         self._end = end
-        if any(self._start.xyz) == None and any(self._mpa) == None:
-            self._start(xyz = (0,0,0))
-            self._mpa = self.start_end2mpa()
-        elif any(self._mpa) == None:
-            self._mpa = self.start_end2mpa()
+        if all(self._start.xyz):
+            self._mpa = self.start_end2mpa(self._start, self._end)
+        else:
+            self._start.xyz = (0, 0, 0)
+            self._mpa = self.start_end2mpa(self._start, self._end)
             
     @mpa.setter
     def mpa(self, mpa):
         self._mpa = mpa
-        if any(self._start.xyz) == None and any(self._end.xyz) == None:
-            self._start.xyz = (0,0,0)
-            self._end = self.start_mpa2end()
-        elif any(self._start.xyz) == None:
-            self._start = self.end_mpa2start()
-        elif any(self._end.xyz) == None:
-            self._end = self.start_mpa2end()
-            
+        if all(self._start.xyz):
+            self._end.xyz = self.start_mpa2end(self._start, self._mpa)
+        elif all(self._end.xyz):
+            self._start = self.end_mpa2start(self._end, self._mpa)
+        else:
+            self._start.xyz = (0, 0, 0)
+            self._end.xyz = self.start_mpa2end(self._start, self._mpa)            
                 
-    def start_mpa2end():
-        pass
+    def start_mpa2end(self, start, mpa):
+        return tuple(np.array(start.xyz) + 
+                              np.array(point().spherical2cartesian(mpa)))
     
-    def end_mpa2start():
-        pass
+    def end_mpa2start(self, end, mpa):
+        return tuple(np.array(end.xyz) - 
+                              np.array(point().spherical2cartesian(mpa)))
     
-    def start_end2rpa():
-        pass
+    def start_end2mpa(self, start, end):
+        dx = end.x - start.x
+        dy = end.y - start.y
+        dz = end.z - start.z
+        return point().cartesian2spherical((dx, dy, dz))
 
 
 class trajectory:
