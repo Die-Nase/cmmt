@@ -2,7 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import datetime
+import pint
+import pint_pandas
 from scipy.stats import levy
+
 
 class point:
     def __init__(self, xyz = (None, None, None), rpa = (None, None, None),
@@ -236,10 +239,55 @@ class vector:
 
 
 class trajectory:
-    def __init__(points = [], vectors = [], start = "hallo", timestep = 1):
+    def __init__(self, fxyz = np.array(), generation_datetime = datetime.datetime.now(),
+                 freq = '1 S', spaceUnit = 'm'):
+        self._txyz = self.txyz(fxyz = fxyz, generation_datetime = generation_datetime,
+                      freq = freq, spaceUnit = spaceUnit)
+        self._points = []
+        self._vectors
+
+    @property
+    def txyz(self):
+        return self._txyz
+    
+    @txyz.setter
+    def txyz(self, fxyz, generation_datetime, freq, spaceUnit):
+        t = pd.Series(pd.date_range(generation_datetime, freq=freq, periods=len(fxyz)))
+        data ={'fn': pd.Series(fxyz[:,0], dtype='Int64'),
+               't': pd.Series(t, dtype = 'datetime64'),
+               'x': pd.Series(fxyz[:,1], dtype="pint["+spaceUnit+"]"),
+               'y': pd.Series(fxyz[:,2], dtype="pint["+spaceUnit+"]"),
+               'z': pd.Series(fxyz[:,3], dtype="pint["+spaceUnit+"]" )}
+        # test = pd.DataFrame(data)
+        self._txyz = pd.DataFrame(data)
+        
+    @property
+    def points(self):
+        return self._points
+    
+    @property
+    def vectors(self):
+        return self._points
+    
+    @property
+    def velocity(self):
+        for row in self._txyz.iterrows():
+            pass
+    
+    @property
+    def displacement(self):
         pass
     
+            
+        
+    def trackmate_xml2DataFrame(self, trackmate_xml):
+        pass
     
+        
+    
+
+for i, g in test.groupby(np.arange(len(test)) // 2):
+
 
 class LevyFlight:
     def __init__(self, loc = 0, scale = 1, n_tracks = 1, len_tracks = 100, 
@@ -255,3 +303,36 @@ class LevyFlight:
         stepsize = levy.rvs(self.loc,self.scale,size = self.len_tracks)
         
 
+
+fxyz = np.array([[181, 372.44840892346417, 1392.9970222092763, 0.0],
+               [182, 373.16006520865074, 1393.1116296971932, 0.0],
+               [183, 372.5888414573269, 1392.087922094057, 0.0],
+               [184, 371.47162594500435, 1391.5351846322474, 0.0],
+               [185, 369.24421493144075, 1390.6588627745375, 0.0],
+               [186, 369.6450338418909, 1390.725567955707, 0.0],
+               [187, 370.624446126946, 1391.4296428129408, 0.0],
+               [188, 371.50277040471093, 1391.6409472786852, 0.0],
+               [189, 372.94501560620296, 1392.0921455475623, 0.0],
+               [190, 373.18290170287753, 1391.7978370942435, 0.0],
+               [191, 371.2552424409938, 1391.4683611969374, 0.0],
+               [192, 369.7177104170941, 1387.0306214492473, 0.0],
+               [193, 368.7203413928448, 1390.0195814760107, 0.0],
+               [194, 370.00135913784425, 1386.7504562823817, 0.0],
+               [195, 370.0178789337686, 1386.7260815938664, 0.0]])
+
+import numpy as np
+import pandas as pd
+import pint
+import pint_pandas
+
+
+import pandas as pd 
+import pint
+import pint_pandas
+
+df = pd.DataFrame({
+    "torque": pd.Series([1, 2, 2, 3], dtype="pint[lbf ft]"),
+    "angular_velocity": pd.Series([1, 2, 2, 3], dtype="pint[rpm]"),
+})
+df['power'] = df['torque'] * df['angular_velocity']
+df.dtypes
