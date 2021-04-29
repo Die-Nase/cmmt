@@ -153,11 +153,11 @@ class vector:
         self._start = start
         self._end = end
         self._dt = self._end.t - self._start.t
-        if all(self._start.xyz) and all(self._end.xyz):
+        if self.chk4None(self._start.xyz) and self.chk4None(self._end.xyz):
             self._mpa = self.start_end2mpa(self._start, self._end)
-        elif(all(self._start.xyz) and all (self._mpa)):
+        elif self.chk4None(self._start.xyz) and self.chk4None(self._mpa):
             self._end.xyz = self.start_mpa2end(self._start, self._mpa)
-        elif(all(self._end.xyz) and all(self._mpa)):
+        elif self.chk4None(self._end.xyz) and self.chk4None(self._mpa):
             self.start.xyz = self.end_mpa2start(self._end, self._mpa)
 
     @property
@@ -236,38 +236,65 @@ class vector:
         dy = end.y - start.y
         dz = end.z - start.z
         return point().cartesian2spherical((dx, dy, dz))
+    
+    def chk4None(self, tuple_in):
+        return not any(map(lambda x: x is None, tuple_in))
 
 
 class trajectory:
-    def __init__(self, fxyz = np.array(), generation_datetime = datetime.datetime.now(),
+    def __init__(self, fxyz = np.empty((1,5)), generation_datetime = datetime.datetime.now(),
                  freq = '1 S', spaceUnit = 'm'):
-        self._txyz = self.txyz(fxyz = fxyz, generation_datetime = generation_datetime,
-                      freq = freq, spaceUnit = spaceUnit)
+        t = pd.Series(pd.date_range(generation_datetime, freq=freq, periods=len(fxyz)))
+        data ={'fn': pd.Series(fxyz[:,0], dtype='Int64'),
+               't': pd.Series(t, dtype = 'datetime64'),
+               # 'x': pd.Series(fxyz[:,1], dtype="pint["+spaceUnit+"]"),
+               # 'y': pd.Series(fxyz[:,2], dtype="pint["+spaceUnit+"]"),
+               # 'z': pd.Series(fxyz[:,3], dtype="pint["+spaceUnit+"]" )}
+               'x': pd.Series(fxyz[:,1]),
+               'y': pd.Series(fxyz[:,2]),
+               'z': pd.Series(fxyz[:,3])}
+        self._txyz = pd.DataFrame(data)
         self._points = []
-        self._vectors
-
+        self._vectors = []
+    
+    
     @property
     def txyz(self):
         return self._txyz
     
     @txyz.setter
-    def txyz(self, fxyz, generation_datetime, freq, spaceUnit):
-        t = pd.Series(pd.date_range(generation_datetime, freq=freq, periods=len(fxyz)))
-        data ={'fn': pd.Series(fxyz[:,0], dtype='Int64'),
-               't': pd.Series(t, dtype = 'datetime64'),
-               'x': pd.Series(fxyz[:,1], dtype="pint["+spaceUnit+"]"),
-               'y': pd.Series(fxyz[:,2], dtype="pint["+spaceUnit+"]"),
-               'z': pd.Series(fxyz[:,3], dtype="pint["+spaceUnit+"]" )}
-        # test = pd.DataFrame(data)
-        self._txyz = pd.DataFrame(data)
+    def txyz(self, txyz):
+        self._txyz = txyz
         
     @property
     def points(self):
+        if not self._points:
+            self._points = self.get_points(self._txyz)
         return self._points
+    
+    def get_points(self, txyz):
+        points = [None] * len(txyz)
+        # points = [point()] * len(txyz)
+        for row in txyz.itertuples():
+            # points[row.Index].xyz = (row.x, row.y, row.z)
+            # points[row.Index].t = row.t
+            # points[row.Index].n = row.fn
+            points[row.Index] = point(xyz = (row.x, row.y, row.z),
+                                          t = row.t, n = row.fn)
+        return points
     
     @property
     def vectors(self):
-        return self._points
+        if not self._vectors:
+            self._vectors = self.get_vectors(self.points)
+        return self._vectors
+    
+    def get_vectors(self, points):
+        vectors = [None] * (len(points)-1)
+        for i in range(0, len(vectors)):
+            vectors[i] = vector(start = points[i], end = points[i+1])
+        return vectors
+            
     
     @property
     def velocity(self):
@@ -286,7 +313,6 @@ class trajectory:
         
     
 
-for i, g in test.groupby(np.arange(len(test)) // 2):
 
 
 class LevyFlight:
@@ -320,19 +346,6 @@ fxyz = np.array([[181, 372.44840892346417, 1392.9970222092763, 0.0],
                [194, 370.00135913784425, 1386.7504562823817, 0.0],
                [195, 370.0178789337686, 1386.7260815938664, 0.0]])
 
-import numpy as np
-import pandas as pd
-import pint
-import pint_pandas
-
-
-import pandas as pd 
-import pint
-import pint_pandas
-
-df = pd.DataFrame({
-    "torque": pd.Series([1, 2, 2, 3], dtype="pint[lbf ft]"),
-    "angular_velocity": pd.Series([1, 2, 2, 3], dtype="pint[rpm]"),
-})
-df['power'] = df['torque'] * df['angular_velocity']
-df.dtypes
+track = trajectory(fxyz = fxyz, freq = '30 S', spaceUnit = "um")
+track.points
+print(track.vectors)
