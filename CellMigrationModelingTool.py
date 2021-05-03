@@ -1,19 +1,32 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 import datetime
 import pint
-import pint_pandas
+
 from scipy.stats import levy
+import matplotlib.pyplot as plt
+import pint_pandas
+
+ureg = pint.UnitRegistry()
+Q_ = ureg.Quantity
 
 
 class point:
     def __init__(self, xyz = (None, None, None), rpa = (None, None, None),
-                 t = datetime.datetime.now(), n = None):
+                 t = datetime.datetime.now(), n = None, 
+                 spaceUnit = ureg('1 meter')):
         self._xyz = xyz
         self._rpa = rpa
         self._t = t
         self._n = n
+        self._spaceUnit = spaceUnit
+        if self.chk4input(self._xyz):
+            self._xyz = tuple(self.quality_control(list(xyz), [0]*3, [self._spaceUnit]*3))
+            self._rpa = self.cartesian2spherical(self._xyz)
+        elif self.chk4input(self._rpa):
+            self._rpa = tuple(self.quality_control(list(rpa), [0]*3, 
+                [self._spaceUnit,ureg('radians'),ureg('radians')]))
+            self._xyz = self.spherical2cartesian(self._rpa)
     
     @property
     def x(self):
@@ -55,62 +68,64 @@ class point:
     def n(self):
         return self._n
     
+    @property 
+    def spaceUnit(self):
+        return self._spaceUnit
+    
     @x.setter
     def x(self, x):
-        xyz = np.array(self._xyz)
-        xyz[xyz==None] = 0
+        xyz = list(self._xyz)
         xyz[0] = x
-        self._xyz = tuple(xyz)
+        self._xyz = tuple(self.quality_control(xyz, [0]*3, [self._spaceUnit]*3))
         self._rpa = self.cartesian2spherical(self._xyz)
         
     @y.setter
     def y(self, y):
-        xyz = np.array(self._xyz)
-        xyz[xyz==None] = 0
+        xyz = list(self._xyz)
         xyz[1] = y
-        self._xyz = tuple(xyz)
+        self._xyz = tuple(self.quality_control(xyz, [0]*3, [self._spaceUnit]*3))
         self._rpa = self.cartesian2spherical(self._xyz)
         
     @z.setter
     def z(self, z):
-        xyz = np.array(self._xyz)
-        xyz[xyz==None] = 0
+        xyz = list(self._xyz)
         xyz[2] = z
-        self._xyz = tuple(xyz)
+        self._xyz = tuple(self.quality_control(xyz, [0]*3, [self._spaceUnit]*3))
         self._rpa = self.cartesian2spherical(self._xyz)
     
     @xyz.setter
     def xyz(self, xyz):
-        self._xyz = xyz
+        self._xyz = tuple(self.quality_control(list(xyz), [0]*3, [self._spaceUnit]*3))
         self._rpa = self.cartesian2spherical(self._xyz)
     
     @radius.setter
     def radius(self, radius):
-        rpa = np.array(self._rpa)
-        rpa[rpa==None] = 0
+        rpa = list(self._rpa)
         rpa[0] = radius
-        self._rpa = tuple(rpa)
+        self._rpa = tuple(self.quality_control(rpa, [0]*3, 
+                        [self._spaceUnit,ureg('radians'),ureg('radians')]))
         self._xyz = self.spherical2cartesian(self._rpa)
         
     @polar_angle.setter
     def polar_angle(self, polar_angle):
-        rpa = np.array(self._rpa)
-        rpa[rpa==None] = 0
+        rpa = list(self._rpa)
         rpa[1] = polar_angle
-        self._rpa = tuple(rpa)
+        self._rpa = tuple(self.quality_control(rpa, [0]*3, 
+                        [self._spaceUnit,ureg('radians'),ureg('radians')]))
         self._xyz = self.spherical2cartesian(self._rpa)
         
     @azimuthal_angle.setter
     def azimuthal_angle(self, azimuthal_angle):
-        rpa = np.array(self._rpa)
-        rpa[rpa==None] = 0
+        rpa = list(self._rpa)
         rpa[2] = azimuthal_angle
-        self._rpa = tuple(rpa)
+        self._rpa = tuple(self.quality_control(rpa, [0]*3, 
+                        [self._spaceUnit,ureg('radians'),ureg('radians')]))
         self._xyz = self.spherical2cartesian(self._rpa)
 
     @rpa.setter
     def rpa(self, rpa):
-        self._rpa = rpa
+        self._rpa = tuple(self.quality_control(list(rpa), [0]*3, 
+                [self._spaceUnit,ureg('radians'),ureg('radians')]))
         self._xyz = self.spherical2cartesian(self._rpa)
     
     @t.setter
@@ -121,18 +136,22 @@ class point:
     def n(self, point_number):
         self._n = point_number
         
+    @spaceUnit.setter
+    def spaceUnit(self, spaceUnit):
+        self._spaceUnit = spaceUnit
+        
     def cartesian2spherical(self, xyz):
         x, y, z = xyz[0], xyz[1], xyz[2]
         radius = np.sqrt(x**2 + y**2 + z**2)
         if radius == 0:
-            return (0,0,0)
+            return (0 * self._spaceUnit,0*ureg('radians'),0*ureg('radians'))
         polar_angle = np.arccos(z/radius)
         if polar_angle == 0:
-            return (radius,0,0)
+            return (radius,0*ureg('radians'),0*ureg('radians'))
         if y >=0:
             azimuthal_angle = np.arctan2(y,x)
         else:
-            azimuthal_angle = np.arctan2(y,x) + 2 * np.pi
+            azimuthal_angle = np.arctan2(y,x) + 2 * np.pi * ureg('radians')
         #azimuthal_angle = np.arcsin(y/(radius*np.sin(polar_angle)))
         #azimuthal_angle = np.arctan(y/x)
         return (radius, polar_angle, azimuthal_angle)
@@ -146,20 +165,32 @@ class point:
         z = radius * np.cos(polar_angle)
         return (x, y ,z)
 
-            
+    def quality_control(self, input_values, default_values, default_Units):
+        for i in range(len(input_values)):
+            if input_values[i] == None:
+                input_values[i] = default_values[i]* default_Units[i]
+            elif Q_(input_values[i]).dimensionless:
+                input_values[i] = input_values[i] * default_Units[i]
+        return input_values
+    
+    def chk4input(self, tuple_in):
+        return not any(map(lambda x: x is None, tuple_in))
+
+
 class vector:
     def __init__(self, mpa = (None, None, None), start = point(), end = point()):
         self._mpa = mpa
         self._start = start
         self._end = end
-        self._dt = self._end.t - self._start.t
-        if self.chk4None(self._start.xyz) and self.chk4None(self._end.xyz):
+        self._dt = (self._end.t - self._start.t).total_seconds() * ureg('seconds')
+        
+        if point().chk4input(self._start.xyz) and point().chk4input(self._end.xyz):
             self._mpa = self.start_end2mpa(self._start, self._end)
-        elif self.chk4None(self._start.xyz) and self.chk4None(self._mpa):
+        elif point().chk4input(self._start.xyz) and point().chk4input(self._mpa):
             self._end.xyz = self.start_mpa2end(self._start, self._mpa)
-        elif self.chk4None(self._end.xyz) and self.chk4None(self._mpa):
+        elif point().chk4input(self._end.xyz) and point().chk4input(self._mpa):
             self.start.xyz = self.end_mpa2start(self._end, self._mpa)
-
+    
     @property
     def mpa(self):
         return self._mpa
@@ -192,7 +223,7 @@ class vector:
         return self._dt
     @property
     def velocity(self):
-        return self._mpa[0]/self._dt.seconds
+        return self._mpa[0]/self._dt
     
     @start.setter
     def start(self, start):
@@ -200,18 +231,18 @@ class vector:
         if all(self._end.xyz):
             self._mpa = self.start_end2mpa(self._start, self._end)
         else:
-            self._end.xyz = (0,0,0)
+            self._end.xyz = tuple((0,0,0) * self._end.spaceUnit)
             self._mpa = self.start_end2mpa(self._start, self._end)
-
+    
     @end.setter
     def end(self, end):
         self._end = end
         if all(self._start.xyz):
             self._mpa = self.start_end2mpa(self._start, self._end)
         else:
-            self._start.xyz = (0, 0, 0)
+            self._start.xyz = tuple((0,0,0) * self._start.spaceUnit)
             self._mpa = self.start_end2mpa(self._start, self._end)
-            
+        
     @mpa.setter
     def mpa(self, mpa):
         self._mpa = mpa
@@ -220,25 +251,22 @@ class vector:
         elif all(self._end.xyz):
             self._start = self.end_mpa2start(self._end, self._mpa)
         else:
-            self._start.xyz = (0, 0, 0)
+            self._start.xyz = tuple((0,0,0) * self._start.spaceUnit)
             self._end.xyz = self.start_mpa2end(self._start, self._mpa)            
                 
     def start_mpa2end(self, start, mpa):
-        return tuple(np.array(start.xyz) + 
-                              np.array(point().spherical2cartesian(mpa)))
+        return tuple(ureg.Quantity.from_list(list(start.xyz)) +
+                     ureg.Quantity.from_list(list(point().spherical2cartesian(mpa))))
     
     def end_mpa2start(self, end, mpa):
-        return tuple(np.array(end.xyz) - 
-                              np.array(point().spherical2cartesian(mpa)))
+         return tuple(ureg.Quantity.from_list(list(end.xyz)) +
+                     ureg.Quantity.from_list(list(point().spherical2cartesian(mpa))))
     
     def start_end2mpa(self, start, end):
         dx = end.x - start.x
         dy = end.y - start.y
         dz = end.z - start.z
         return point().cartesian2spherical((dx, dy, dz))
-    
-    def chk4None(self, tuple_in):
-        return not any(map(lambda x: x is None, tuple_in))
 
 
 class trajectory:
@@ -274,11 +302,7 @@ class trajectory:
     
     def get_points(self, txyz):
         points = [None] * len(txyz)
-        # points = [point()] * len(txyz)
         for row in txyz.itertuples():
-            # points[row.Index].xyz = (row.x, row.y, row.z)
-            # points[row.Index].t = row.t
-            # points[row.Index].n = row.fn
             points[row.Index] = point(xyz = (row.x, row.y, row.z),
                                           t = row.t, n = row.fn)
         return points
@@ -297,13 +321,19 @@ class trajectory:
             
     
     @property
-    def velocity(self):
-        for row in self._txyz.iterrows():
-            pass
+    def velocities(self):
+        velocity_list = [None] * len(self._vectors)
+        for i in range(0, len(velocity_list)):
+            velocity_list[i] = self._vectors[i].velocity
+        return velocity_list
+            
     
     @property
-    def displacement(self):
-        pass
+    def displacements(self):
+        displacement_list = [None] * len(self._vectors)
+        for i in range(0, len(displacement_list)):
+            displacement_list[i] = self._vectors[i].magnitude
+        return displacement_list
     
             
         
@@ -311,10 +341,6 @@ class trajectory:
         pass
     
         
-    
-
-
-
 class LevyFlight:
     def __init__(self, loc = 0, scale = 1, n_tracks = 1, len_tracks = 100, 
                  timestep = 1):
@@ -328,7 +354,6 @@ class LevyFlight:
         direction = np.random.random_sample(size = self.len_tracks) * 2* np.pi
         stepsize = levy.rvs(self.loc,self.scale,size = self.len_tracks)
         
-
 
 fxyz = np.array([[181, 372.44840892346417, 1392.9970222092763, 0.0],
                [182, 373.16006520865074, 1393.1116296971932, 0.0],
@@ -349,3 +374,14 @@ fxyz = np.array([[181, 372.44840892346417, 1392.9970222092763, 0.0],
 track = trajectory(fxyz = fxyz, freq = '30 S', spaceUnit = "um")
 track.points
 print(track.vectors)
+
+import pandas as pd
+import pint
+
+
+df = pd.DataFrame({
+    "torque": pd.Series([1, 2, 2, 3], dtype="pint[lbf ft]"),
+    "angular_velocity": pd.Series([1, 2, 2, 3], dtype="pint[rpm]") })
+
+df['power'] = df['torque'] * df['angular_velocity']
+df.dtypes
