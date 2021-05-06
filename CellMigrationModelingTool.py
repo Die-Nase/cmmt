@@ -10,24 +10,20 @@ import pint_pandas
 ureg = pint.UnitRegistry()
 Q_ = ureg.Quantity
 
-
+                 
 class point:
-    def __init__(self, xyz = (None, None, None), rpa = (None, None, None),
+    
+    def __init__(self,  xyz = (None, None, None), rpa = (None, None, None), 
                  t = datetime.datetime.now(), n = None, 
-                 spaceUnit = ureg('1 meter')):
-        self._xyz = xyz
-        self._rpa = rpa
+                 spaceUnit = 'meter', angle_measure = 'radian'):
+        self._xyz= Q_(xyz, spaceUnit)
         self._t = t
         self._n = n
-        self._spaceUnit = spaceUnit
-        if self.chk4input(self._xyz):
-            self._xyz = tuple(self.quality_control(list(xyz), [0]*3, [self._spaceUnit]*3))
-            self._rpa = self.cartesian2spherical(self._xyz)
-        elif self.chk4input(self._rpa):
-            self._rpa = tuple(self.quality_control(list(rpa), [0]*3, 
-                [self._spaceUnit,ureg('radians'),ureg('radians')]))
-            self._xyz = self.spherical2cartesian(self._rpa)
-    
+        if self.chk4input(rpa) and self.chk4input(xyz):
+            raise Exception("Two inputs where one was expected. rpa will be ignored")
+        elif self.chk4input(rpa):
+            self._xyz = self.spherical2cartesian(rpa, spaceUnit, angle_measure)
+            
     @property
     def x(self):
         return self._xyz[0]
@@ -46,19 +42,19 @@ class point:
     
     @property
     def radius(self):
-        return self._rpa[0]
+        return self.rpa[0]
     
     @property
     def polar_angle(self):
-        return self._rpa[1]
+        return self.rpa[1][0]
     
     @property
     def azimuthal_angle(self):
-        return self._rpa[2]
+        return self.rpa[1][1]
     
     @property
     def rpa(self):
-        return self._rpa
+        return self.cartesian2spherical(self._xyz.magnitude, self._xyz.units)
     
     @property
     def t(self):
@@ -70,108 +66,111 @@ class point:
     
     @property 
     def spaceUnit(self):
-        return self._spaceUnit
+        return self._xyz.units
     
-    @x.setter
-    def x(self, x):
-        xyz = list(self._xyz)
-        xyz[0] = x
-        self._xyz = tuple(self.quality_control(xyz, [0]*3, [self._spaceUnit]*3))
-        self._rpa = self.cartesian2spherical(self._xyz)
+    # @x.setter
+    # def x(self, x):
         
-    @y.setter
-    def y(self, y):
-        xyz = list(self._xyz)
-        xyz[1] = y
-        self._xyz = tuple(self.quality_control(xyz, [0]*3, [self._spaceUnit]*3))
-        self._rpa = self.cartesian2spherical(self._xyz)
+    #     if len(x) == 2:
+    #         x, unit = x
+    #         Q_(x, unit).
+    #     xyz = self._xyz.magnitude
+    #     unit = self._xyz.units
+    #     xyz[0] = x
+    #     self._xyz = Q_(xyz, unit)
         
-    @z.setter
-    def z(self, z):
-        xyz = list(self._xyz)
-        xyz[2] = z
-        self._xyz = tuple(self.quality_control(xyz, [0]*3, [self._spaceUnit]*3))
-        self._rpa = self.cartesian2spherical(self._xyz)
+    # @y.setter
+    # def y(self, y):
+    #     xyz = self._xyz.magnitude
+    #     unit = self._xyz.units
+    #     xyz[1] = y
+    #     self._xyz = Q_(xyz, unit)
+        
+    # @z.setter
+    # def z(self, z):
+    #     xyz = self._xyz.magnitude
+    #     unit = self._xyz.units
+    #     xyz[2] = z
+    #     self._xyz = Q_(xyz, unit)
     
-    @xyz.setter
-    def xyz(self, xyz):
-        self._xyz = tuple(self.quality_control(list(xyz), [0]*3, [self._spaceUnit]*3))
-        self._rpa = self.cartesian2spherical(self._xyz)
+    # @xyz.setter
+    # def xyz(self, xyz):
+    #     unit = self._xyz.units
+    #     self._xyz = Q_(xyz, unit)
     
-    @radius.setter
-    def radius(self, radius):
-        rpa = list(self._rpa)
-        rpa[0] = radius
-        self._rpa = tuple(self.quality_control(rpa, [0]*3, 
-                        [self._spaceUnit,ureg('radians'),ureg('radians')]))
-        self._xyz = self.spherical2cartesian(self._rpa)
+    # @radius.setter
+    # def radius(self, radius):
+    #     rpa = list(self._rpa)
+    #     rpa[0] = radius
+    #     self._rpa = tuple(self.quality_control(rpa, [0]*3, 
+    #                     [self._spaceUnit,ureg('radians'),ureg('radians')]))
+    #     self._xyz = self.spherical2cartesian(self._rpa)
         
-    @polar_angle.setter
-    def polar_angle(self, polar_angle):
-        rpa = list(self._rpa)
-        rpa[1] = polar_angle
-        self._rpa = tuple(self.quality_control(rpa, [0]*3, 
-                        [self._spaceUnit,ureg('radians'),ureg('radians')]))
-        self._xyz = self.spherical2cartesian(self._rpa)
+    # @polar_angle.setter
+    # def polar_angle(self, polar_angle):
+    #     rpa = list(self._rpa)
+    #     rpa[1] = polar_angle
+    #     self._rpa = tuple(self.quality_control(rpa, [0]*3, 
+    #                     [self._spaceUnit,ureg('radians'),ureg('radians')]))
+    #     self._xyz = self.spherical2cartesian(self._rpa)
         
-    @azimuthal_angle.setter
-    def azimuthal_angle(self, azimuthal_angle):
-        rpa = list(self._rpa)
-        rpa[2] = azimuthal_angle
-        self._rpa = tuple(self.quality_control(rpa, [0]*3, 
-                        [self._spaceUnit,ureg('radians'),ureg('radians')]))
-        self._xyz = self.spherical2cartesian(self._rpa)
+    # @azimuthal_angle.setter
+    # def azimuthal_angle(self, azimuthal_angle):
+    #     rpa = list(self._rpa)
+    #     rpa[2] = azimuthal_angle
+    #     self._rpa = tuple(self.quality_control(rpa, [0]*3, 
+    #                     [self._spaceUnit,ureg('radians'),ureg('radians')]))
+    #     self._xyz = self.spherical2cartesian(self._rpa)
 
-    @rpa.setter
-    def rpa(self, rpa):
-        self._rpa = tuple(self.quality_control(list(rpa), [0]*3, 
-                [self._spaceUnit,ureg('radians'),ureg('radians')]))
-        self._xyz = self.spherical2cartesian(self._rpa)
+    # @rpa.setter
+    # def rpa(self, rpa):
+    #     self._rpa = tuple(self.quality_control(list(rpa), [0]*3, 
+    #             [self._spaceUnit,ureg('radians'),ureg('radians')]))
+    #     self._xyz = self.spherical2cartesian(self._rpa)
     
-    @t.setter
-    def t(self, timestamp):
-        self._t = timestamp
+    # @t.setter
+    # def t(self, timestamp):
+    #     self._t = timestamp
     
-    @n.setter
-    def n(self, point_number):
-        self._n = point_number
+    # @n.setter
+    # def n(self, point_number):
+    #     self._n = point_number
         
-    @spaceUnit.setter
-    def spaceUnit(self, spaceUnit):
-        self._spaceUnit = spaceUnit
+    # @spaceUnit.setter
+    # def spaceUnit(self, spaceUnit):
+    #     self._xyz._units = ureg.Unit(spaceUnit)
         
-    def cartesian2spherical(self, xyz):
-        x, y, z = xyz[0], xyz[1], xyz[2]
+    def cartesian2spherical(self, xyz, spaceUnit):
+        x, y, z = Q_(xyz, spaceUnit)
         radius = np.sqrt(x**2 + y**2 + z**2)
         if radius == 0:
-            return (0 * self._spaceUnit,0*ureg('radians'),0*ureg('radians'))
+            return (radius, Q_([0,0],'radian'))
         polar_angle = np.arccos(z/radius)
         if polar_angle == 0:
-            return (radius,0*ureg('radians'),0*ureg('radians'))
+            return (radius, Q_([0,0],'radian'))
         if y >=0:
             azimuthal_angle = np.arctan2(y,x)
         else:
             azimuthal_angle = np.arctan2(y,x) + 2 * np.pi * ureg('radians')
         #azimuthal_angle = np.arcsin(y/(radius*np.sin(polar_angle)))
         #azimuthal_angle = np.arctan(y/x)
-        return (radius, polar_angle, azimuthal_angle)
+        return (radius, Q_([polar_angle.magnitude, azimuthal_angle.magnitude], 'radian'))
     
-    def spherical2cartesian(self, rpa):
-        radius = rpa[0]
-        polar_angle = rpa[1]
-        azimuthal_angle = rpa[2]
+    def spherical2cartesian(self, rpa, spaceUnit, angle_measure):
+        radius = Q_(rpa[0], spaceUnit)
+        polar_angle, azimuthal_angle = Q_([rpa[1],rpa[2]], angle_measure)
         x = radius * np.sin(polar_angle) * np.cos(azimuthal_angle)
         y = radius * np.sin(polar_angle) * np.sin(azimuthal_angle)
         z = radius * np.cos(polar_angle)
-        return (x, y ,z)
+        return Q_([x.magnitude, y.magnitude ,z.magnitude],spaceUnit)
 
-    def quality_control(self, input_values, default_values, default_Units):
-        for i in range(len(input_values)):
-            if input_values[i] == None:
-                input_values[i] = default_values[i]* default_Units[i]
-            elif Q_(input_values[i]).dimensionless:
-                input_values[i] = input_values[i] * default_Units[i]
-        return input_values
+    # def quality_control(self, input_values, default_values, default_Units):
+    #     for i in range(len(input_values)):
+    #         if input_values[i] == None:
+    #             input_values[i] = default_values[i]* default_Units[i]
+    #         elif Q_(input_values[i]).dimensionless:
+    #             input_values[i] = input_values[i] * default_Units[i]
+    #     return input_values
     
     def chk4input(self, tuple_in):
         return not any(map(lambda x: x is None, tuple_in))
