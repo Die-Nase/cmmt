@@ -177,31 +177,25 @@ class point:
 
 
 class vector:
-    def __init__(self, mpa = (None, None, None), start = point(), end = point()):
-        self._mpa = mpa
+    def __init__(self, start = point(), end = point()):
         self._start = start
         self._end = end
-        self._dt = (self._end.t - self._start.t).total_seconds() * ureg('seconds')
-        
-        if point().chk4input(self._start.xyz) and point().chk4input(self._end.xyz):
-            self._mpa = self.start_end2mpa(self._start, self._end)
-        elif point().chk4input(self._start.xyz) and point().chk4input(self._mpa):
-            self._end.xyz = self.start_mpa2end(self._start, self._mpa)
-        elif point().chk4input(self._end.xyz) and point().chk4input(self._mpa):
-            self.start.xyz = self.end_mpa2start(self._end, self._mpa)
     
     @property
     def mpa(self):
-        return self._mpa
+        return self.start_end2mpa(self._start,self._end)
     @property
     def magnitude(self):
-        return self._mpa[0]
+        mpa = self.start_end2mpa(self._start,self._end)
+        return mpa[0]
     @property
     def polar_angle(self):
-        return self._mpa[1]
+        mpa = self.start_end2mpa(self._start,self._end)
+        return mpa[1][0]
     @property
     def azimuthal_angle(self):
-        return self._mpa[2]
+        mpa = self.start_end2mpa(self._start,self._end)
+        return mpa[1][1]
     @property
     def start(self):
         return self._start
@@ -219,53 +213,51 @@ class vector:
         return self._end.z - self._start.z
     @property
     def dt(self):
-        return self._dt
+        return (self._end.t - self._start.t).total_seconds() * ureg('seconds')
     @property
     def velocity(self):
-        return self._mpa[0]/self._dt
+        return self.magnitude/self.dt
     
-    @start.setter
-    def start(self, start):
-        self._start = start
-        if all(self._end.xyz):
-            self._mpa = self.start_end2mpa(self._start, self._end)
-        else:
-            self._end.xyz = tuple((0,0,0) * self._end.spaceUnit)
-            self._mpa = self.start_end2mpa(self._start, self._end)
+    # @start.setter
+    # def start(self, start):
+    #     self._start = start
+    #     if all(self._end.xyz):
+    #         self._mpa = self.start_end2mpa(self._start, self._end)
+    #     else:
+    #         self._end.xyz = tuple((0,0,0) * self._end.spaceUnit)
+    #         self._mpa = self.start_end2mpa(self._start, self._end)
     
-    @end.setter
-    def end(self, end):
-        self._end = end
-        if all(self._start.xyz):
-            self._mpa = self.start_end2mpa(self._start, self._end)
-        else:
-            self._start.xyz = tuple((0,0,0) * self._start.spaceUnit)
-            self._mpa = self.start_end2mpa(self._start, self._end)
+    # @end.setter
+    # def end(self, end):
+    #     self._end = end
+    #     if all(self._start.xyz):
+    #         self._mpa = self.start_end2mpa(self._start, self._end)
+    #     else:
+    #         self._start.xyz = tuple((0,0,0) * self._start.spaceUnit)
+    #         self._mpa = self.start_end2mpa(self._start, self._end)
         
-    @mpa.setter
-    def mpa(self, mpa):
-        self._mpa = mpa
-        if all(self._start.xyz):
-            self._end.xyz = self.start_mpa2end(self._start, self._mpa)
-        elif all(self._end.xyz):
-            self._start = self.end_mpa2start(self._end, self._mpa)
-        else:
-            self._start.xyz = tuple((0,0,0) * self._start.spaceUnit)
-            self._end.xyz = self.start_mpa2end(self._start, self._mpa)            
+    # @mpa.setter
+    # def mpa(self, mpa):
+    #     self._mpa = mpa
+    #     if all(self._start.xyz):
+    #         self._end.xyz = self.start_mpa2end(self._start, self._mpa)
+    #     elif all(self._end.xyz):
+    #         self._start = self.end_mpa2start(self._end, self._mpa)
+    #     else:
+    #         self._start.xyz = tuple((0,0,0) * self._start.spaceUnit)
+    #         self._end.xyz = self.start_mpa2end(self._start, self._mpa)            
                 
-    def start_mpa2end(self, start, mpa):
-        return tuple(ureg.Quantity.from_list(list(start.xyz)) +
-                     ureg.Quantity.from_list(list(point().spherical2cartesian(mpa))))
+    # def start_mpa2end(self, start, mpa):
+    #     return tuple(ureg.Quantity.from_list(list(start.xyz)) +
+    #                  ureg.Quantity.from_list(list(point().spherical2cartesian(mpa))))
     
-    def end_mpa2start(self, end, mpa):
-         return tuple(ureg.Quantity.from_list(list(end.xyz)) +
-                     ureg.Quantity.from_list(list(point().spherical2cartesian(mpa))))
+    # def end_mpa2start(self, end, mpa):
+    #      return tuple(ureg.Quantity.from_list(list(end.xyz)) +
+    #                  ureg.Quantity.from_list(list(point().spherical2cartesian(mpa))))
     
     def start_end2mpa(self, start, end):
-        dx = end.x - start.x
-        dy = end.y - start.y
-        dz = end.z - start.z
-        return point().cartesian2spherical((dx, dy, dz))
+        xyz = end.xyz - start.xyz
+        return point().cartesian2spherical(xyz.magnitude, xyz.units)
 
 
 class trajectory:
