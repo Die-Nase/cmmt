@@ -13,7 +13,7 @@ Q_ = ureg.Quantity
                  
 class point:
     
-    def __init__(self,  xyz = (None, None, None), rpa = (None, None, None), 
+    def __init__(self,  xyz = [None, None, None], rpa = [None, None, None], 
                  t = datetime.datetime.now(), n = None, 
                  spaceUnit = 'meter', angle_measure = 'radian'):
         self._xyz= Q_(xyz, spaceUnit)
@@ -24,6 +24,36 @@ class point:
         elif self.chk4input(rpa):
             self._xyz = self.spherical2cartesian(rpa, spaceUnit, angle_measure)
             
+    def __eq__(self, other):
+        if type(other) == point:    
+            if all(self.xyz == other.xyz) and self.t == other.t and self.n == other.n:
+                return True
+            else:
+                return False
+        else: 
+            raise Exception("cannot compare {other_type} to {self_type}".format(
+                other_type = type(other), self_type = type(self)))
+    
+    def __add__(self, other):
+        if  type(other) == point:
+            return vector(start = self, end = other)
+        elif type(other) == vector:
+            xyz = self.xyz + (other.end.xyz - other.start.xyz)
+            return point(xyz = xyz.magnitude, spaceUnit = xyz.units)
+        else:
+            raise Exception("cannot add {other_type} to {self_type}".format(
+                other_type = type(other), self_type = type(self)))
+    
+    def __sub__(self, other):
+        if  type(other) == point:
+            return vector(start = other, end = self)
+        elif type(other) == vector:
+            xyz = self.xyz - (other.end.xyz - other.start.xyz)
+            return point(xyz = xyz.magnitude, spaceUnit = xyz.units)
+        else:
+            raise Exception("cannot subtract {other_type} from {self_type}".format(
+                other_type = type(other), self_type = type(self)))
+    
     @property
     def x(self):
         return self._xyz[0]
@@ -180,6 +210,32 @@ class vector:
     def __init__(self, start = point(), end = point()):
         self._start = start
         self._end = end
+        
+    def __eq__(self, other):
+        if  type(other) == vector:
+            if self.start == other.start and self.end == other.end:
+                return True
+            else:
+                return False
+        else:
+            raise Exception("cannot compare {other_type} to {self_type}".format(
+                other_type = type(other), self_type = type(self)))
+    
+    def __add__(self, other):
+        if type(other) == vector:
+            end = self.end + (other.end - other.start)
+            return vector(start = self.start, end = end)
+        else:
+            raise Exception("cannot add {other_type} to {self_type}".format(
+                other_type = type(other), self_type = type(self)))
+        
+    def __sub__(self, other):
+        if type(other) == vector:
+            end = self.end - (other.end - other.start)
+            return vector(start = self.start, end = end)
+        else:
+            raise Exception("cannot substract {other_type} from {self_type}".format(
+                other_type = type(other), self_type = type(self)))
     
     @property
     def mpa(self):
@@ -211,6 +267,9 @@ class vector:
     @property
     def dz(self):
         return self._end.z - self._start.z
+    # @property
+    # def dxyz:
+    #     return end.xyz - start.xyz
     @property
     def dt(self):
         return (self._end.t - self._start.t).total_seconds() * ureg('seconds')
