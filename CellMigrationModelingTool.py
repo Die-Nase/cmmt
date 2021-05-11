@@ -325,12 +325,10 @@ class trajectory:
         t = pd.Series(pd.date_range(generation_datetime, freq=freq, periods=len(fxyz)))
         data ={'fn': pd.Series(fxyz[:,0], dtype='Int64'),
                't': pd.Series(t, dtype = 'datetime64'),
-               # 'x': pd.Series(fxyz[:,1], dtype="pint["+spaceUnit+"]"),
-               # 'y': pd.Series(fxyz[:,2], dtype="pint["+spaceUnit+"]"),
-               # 'z': pd.Series(fxyz[:,3], dtype="pint["+spaceUnit+"]" )}
-               'x': pd.Series(fxyz[:,1]),
-               'y': pd.Series(fxyz[:,2]),
-               'z': pd.Series(fxyz[:,3])}
+                'x': pd.Series(fxyz[:,1], dtype="pint["+spaceUnit+"]"),
+                'y': pd.Series(fxyz[:,2], dtype="pint["+spaceUnit+"]"),
+                'z': pd.Series(fxyz[:,3], dtype="pint["+spaceUnit+"]" )}
+
         self._txyz = pd.DataFrame(data)
         self._points = []
         self._vectors = []
@@ -340,36 +338,22 @@ class trajectory:
     def txyz(self):
         return self._txyz
     
-    @txyz.setter
-    def txyz(self, txyz):
-        self._txyz = txyz
+    # @txyz.setter
+    # def txyz(self, txyz):
+    #     self._txyz = txyz
         
     @property
     def points(self):
         if not self._points:
             self._points = self.get_points(self._txyz)
         return self._points
-    
-    def get_points(self, txyz):
-        points = [None] * len(txyz)
-        for row in txyz.itertuples():
-            points[row.Index] = point(xyz = (row.x, row.y, row.z),
-                                          t = row.t, n = row.fn)
-        return points
-    
+
     @property
     def vectors(self):
         if not self._vectors:
             self._vectors = self.get_vectors(self.points)
         return self._vectors
-    
-    def get_vectors(self, points):
-        vectors = [None] * (len(points)-1)
-        for i in range(0, len(vectors)):
-            vectors[i] = vector(start = points[i], end = points[i+1])
-        return vectors
             
-    
     @property
     def velocities(self):
         velocity_list = [None] * len(self._vectors)
@@ -377,15 +361,27 @@ class trajectory:
             velocity_list[i] = self._vectors[i].velocity
         return velocity_list
             
-    
     @property
     def displacements(self):
         displacement_list = [None] * len(self._vectors)
         for i in range(0, len(displacement_list)):
             displacement_list[i] = self._vectors[i].magnitude
         return displacement_list
-    
-            
+
+    def get_points(self, txyz):
+        points = [None] * len(txyz)
+        for row in txyz.itertuples():
+            xyz_list = [row.x, row.y, row.z]
+            xyz = Q_.from_list(xyz_list)
+            points[row.Index] = point(xyz = xyz.magnitude, spaceUnit = xyz.units,
+                                      t = row.t, n = row.fn)
+        return points
+        
+    def get_vectors(self, points):
+        vectors = [None] * (len(points)-1)
+        for i in range(0, len(vectors)):
+            vectors[i] = vector(start = points[i], end = points[i+1])
+        return vectors
         
     def trackmate_xml2DataFrame(self, trackmate_xml):
         pass
@@ -421,17 +417,6 @@ fxyz = np.array([[181, 372.44840892346417, 1392.9970222092763, 0.0],
                [194, 370.00135913784425, 1386.7504562823817, 0.0],
                [195, 370.0178789337686, 1386.7260815938664, 0.0]])
 
-track = trajectory(fxyz = fxyz, freq = '30 S', spaceUnit = "um")
+track = trajectory(fxyz = fxyz, freq = '30 S', spaceUnit = "um", generation_datetime = datetime.datetime.now())
 track.points
 print(track.vectors)
-
-import pandas as pd
-import pint
-
-
-df = pd.DataFrame({
-    "torque": pd.Series([1, 2, 2, 3], dtype="pint[lbf ft]"),
-    "angular_velocity": pd.Series([1, 2, 2, 3], dtype="pint[rpm]") })
-
-df['power'] = df['torque'] * df['angular_velocity']
-df.dtypes
