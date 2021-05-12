@@ -40,6 +40,7 @@ class point:
         elif type(other) == vector:
             xyz = self.xyz + (other.end.xyz - other.start.xyz)
             return point(xyz = xyz.magnitude, spaceUnit = xyz.units)
+        # add dxyz and dmpa
         else:
             raise Exception("cannot add {other_type} to {self_type}".format(
                 other_type = type(other), self_type = type(self)))
@@ -50,6 +51,7 @@ class point:
         elif type(other) == vector:
             xyz = self.xyz - (other.end.xyz - other.start.xyz)
             return point(xyz = xyz.magnitude, spaceUnit = xyz.units)
+        #  add -vector, dxyz and dmpa
         else:
             raise Exception("cannot subtract {other_type} from {self_type}".format(
                 other_type = type(other), self_type = type(self)))
@@ -236,6 +238,36 @@ class vector:
         else:
             raise Exception("cannot substract {other_type} from {self_type}".format(
                 other_type = type(other), self_type = type(self)))
+            
+    def dot_product(self, other):
+        return (self.dx * other.dx + self.dy * other.dy + self.dz * other.dz)
+    
+    def cross_product(self, other):
+        dx = self.dy * other.dz - self.dz * other.dy
+        dy = self.dz * other.dx - self.dx * other.dz
+        dz = self.dx * other.dy - self.dy * other.dx
+        xyz = Q_.from_list([dx, dy, dz])
+        start = point(xyz = [0, 0, 0], spaceUnit = xyz.units)
+        end = point(xyz = xyz.magnitude, spaceUnit = xyz.units)
+        return vector(start = start, end = end)
+    
+    def normalize(self):
+        dxyz = Q_.from_list([self.dx, self.dy, self.dz])/self.magnitude.magnitude
+        xyz = self.start.xyz + dxyz
+        return vector(start = self.start, end = point(xyz = xyz.magnitude, spaceUnit = xyz.units))
+    
+    def translate(self, start_point):
+        dxyz = Q_.from_list([self.dx, self.dy, self.dz])
+        xyz = start_point.xyz + dxyz
+        end_point = point(xyz = xyz.magnitude, spaceUnit = xyz.units)
+        return vector(start = start_point, end = end_point)
+    
+    def translate2origin(self):
+        return self.translate(point(xyz = [0,0,0]))
+    
+
+    
+    
     
     @property
     def mpa(self):
@@ -258,6 +290,9 @@ class vector:
     @property
     def end(self):
         return self._end
+    @property
+    def d_xyz(self):
+        pass
     @property
     def dx(self):
         return self._end.x - self._start.x
@@ -419,4 +454,3 @@ fxyz = np.array([[181, 372.44840892346417, 1392.9970222092763, 0.0],
 
 track = trajectory(fxyz = fxyz, freq = '30 S', spaceUnit = "um", generation_datetime = datetime.datetime.now())
 track.points
-print(track.vectors)
