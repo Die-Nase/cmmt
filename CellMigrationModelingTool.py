@@ -13,7 +13,7 @@ Q_ = ureg.Quantity
                  
 class point:
     
-    def __init__(self,  xyz = [None, None, None], rpa = [None, None, None], 
+    def __init__(self,  xyz = [None, None, None], rpa = (None, None, None), 
                  t = datetime.datetime.now(), n = None, 
                  spaceUnit = 'meter', angle_measure = 'radian'):
         self._xyz= Q_(xyz, spaceUnit)
@@ -35,9 +35,9 @@ class point:
                 other_type = type(other), self_type = type(self)))
     
     def __add__(self, other):
-        if  type(other) == point:
+        if  isinstance(other, point):
             return vector(start = self, end = other)
-        elif type(other) == vector:
+        elif isinstance(other, vector):
             xyz = self.xyz + (other.end.xyz - other.start.xyz)
             return point(xyz = xyz.magnitude, spaceUnit = xyz.units)
         # add dxyz and dmpa
@@ -51,7 +51,7 @@ class point:
         elif type(other) == vector:
             xyz = self.xyz - (other.end.xyz - other.start.xyz)
             return point(xyz = xyz.magnitude, spaceUnit = xyz.units)
-        #  add -vector, dxyz and dmpa
+        #  add  dxyz and dmpa
         else:
             raise Exception("cannot subtract {other_type} from {self_type}".format(
                 other_type = type(other), self_type = type(self)))
@@ -99,79 +99,7 @@ class point:
     @property 
     def spaceUnit(self):
         return self._xyz.units
-    
-    # @x.setter
-    # def x(self, x):
-        
-    #     if len(x) == 2:
-    #         x, unit = x
-    #         Q_(x, unit).
-    #     xyz = self._xyz.magnitude
-    #     unit = self._xyz.units
-    #     xyz[0] = x
-    #     self._xyz = Q_(xyz, unit)
-        
-    # @y.setter
-    # def y(self, y):
-    #     xyz = self._xyz.magnitude
-    #     unit = self._xyz.units
-    #     xyz[1] = y
-    #     self._xyz = Q_(xyz, unit)
-        
-    # @z.setter
-    # def z(self, z):
-    #     xyz = self._xyz.magnitude
-    #     unit = self._xyz.units
-    #     xyz[2] = z
-    #     self._xyz = Q_(xyz, unit)
-    
-    # @xyz.setter
-    # def xyz(self, xyz):
-    #     unit = self._xyz.units
-    #     self._xyz = Q_(xyz, unit)
-    
-    # @radius.setter
-    # def radius(self, radius):
-    #     rpa = list(self._rpa)
-    #     rpa[0] = radius
-    #     self._rpa = tuple(self.quality_control(rpa, [0]*3, 
-    #                     [self._spaceUnit,ureg('radians'),ureg('radians')]))
-    #     self._xyz = self.spherical2cartesian(self._rpa)
-        
-    # @polar_angle.setter
-    # def polar_angle(self, polar_angle):
-    #     rpa = list(self._rpa)
-    #     rpa[1] = polar_angle
-    #     self._rpa = tuple(self.quality_control(rpa, [0]*3, 
-    #                     [self._spaceUnit,ureg('radians'),ureg('radians')]))
-    #     self._xyz = self.spherical2cartesian(self._rpa)
-        
-    # @azimuthal_angle.setter
-    # def azimuthal_angle(self, azimuthal_angle):
-    #     rpa = list(self._rpa)
-    #     rpa[2] = azimuthal_angle
-    #     self._rpa = tuple(self.quality_control(rpa, [0]*3, 
-    #                     [self._spaceUnit,ureg('radians'),ureg('radians')]))
-    #     self._xyz = self.spherical2cartesian(self._rpa)
-
-    # @rpa.setter
-    # def rpa(self, rpa):
-    #     self._rpa = tuple(self.quality_control(list(rpa), [0]*3, 
-    #             [self._spaceUnit,ureg('radians'),ureg('radians')]))
-    #     self._xyz = self.spherical2cartesian(self._rpa)
-    
-    # @t.setter
-    # def t(self, timestamp):
-    #     self._t = timestamp
-    
-    # @n.setter
-    # def n(self, point_number):
-    #     self._n = point_number
-        
-    # @spaceUnit.setter
-    # def spaceUnit(self, spaceUnit):
-    #     self._xyz._units = ureg.Unit(spaceUnit)
-        
+      
     def cartesian2spherical(self, xyz, spaceUnit):
         x, y, z = Q_(xyz, spaceUnit)
         radius = np.sqrt(x**2 + y**2 + z**2)
@@ -195,15 +123,7 @@ class point:
         y = radius * np.sin(polar_angle) * np.sin(azimuthal_angle)
         z = radius * np.cos(polar_angle)
         return Q_([x.magnitude, y.magnitude ,z.magnitude],spaceUnit)
-
-    # def quality_control(self, input_values, default_values, default_Units):
-    #     for i in range(len(input_values)):
-    #         if input_values[i] == None:
-    #             input_values[i] = default_values[i]* default_Units[i]
-    #         elif Q_(input_values[i]).dimensionless:
-    #             input_values[i] = input_values[i] * default_Units[i]
-    #     return input_values
-    
+ 
     def chk4input(self, tuple_in):
         return not any(map(lambda x: x is None, tuple_in))
 
@@ -246,29 +166,29 @@ class vector:
         dx = self.dy * other.dz - self.dz * other.dy
         dy = self.dz * other.dx - self.dx * other.dz
         dz = self.dx * other.dy - self.dy * other.dx
-        xyz = Q_.from_list([dx, dy, dz])
-        start = point(xyz = [0, 0, 0], spaceUnit = xyz.units)
-        end = point(xyz = xyz.magnitude, spaceUnit = xyz.units)
-        return vector(start = start, end = end)
+        dxdydz = Q_.from_list([dx, dy, dz])
+        return self.dxdydz2vector(dxdydz)
     
     def normalize(self):
-        dxyz = Q_.from_list([self.dx, self.dy, self.dz])/self.magnitude.magnitude
-        xyz = self.start.xyz + dxyz
-        return vector(start = self.start, end = point(xyz = xyz.magnitude, spaceUnit = xyz.units))
+        dxdydz = self.dxdydz/self.magnitude
+        return self.dxdydz2vector(dxdydz, start = self.start)
     
     def translate(self, start_point):
-        dxyz = Q_.from_list([self.dx, self.dy, self.dz])
-        xyz = start_point.xyz + dxyz
-        end_point = point(xyz = xyz.magnitude, spaceUnit = xyz.units)
-        return vector(start = start_point, end = end_point)
+        return self.dxdydz2vector(self.dxdydz, start_point = start_point)
     
     def translate2origin(self):
         return self.translate(point(xyz = [0,0,0]))
     
+    def dxdydz2vector(self,dxdydz, start_point = point(xyz = [0,0,0])):
+        return vector(start = start_point, 
+                      end = point(xyz = dxdydz.magnitude,
+                      spaceUnit = dxdydz.units))
+    
+    def mpa2vector(self, mpa, start_point = point(xyz = [0,0,0])):
+        rpa = (mpa[0].magnitude, mpa[1][0].magnitude, mpa[1][1].magnitude)
+        end_point = point(rpa = rpa, spaceUnit = mpa[0].units)
+        return vector(start = start_point, end = end_point)
 
-    
-    
-    
     @property
     def mpa(self):
         return self.start_end2mpa(self._start,self._end)
@@ -291,9 +211,6 @@ class vector:
     def end(self):
         return self._end
     @property
-    def d_xyz(self):
-        pass
-    @property
     def dx(self):
         return self._end.x - self._start.x
     @property
@@ -302,52 +219,16 @@ class vector:
     @property
     def dz(self):
         return self._end.z - self._start.z
-    # @property
-    # def dxyz:
-    #     return end.xyz - start.xyz
+    
+    @property
+    def dxdydz(self):
+        return self.end.xyz - self.start.xyz
     @property
     def dt(self):
         return (self._end.t - self._start.t).total_seconds() * ureg('seconds')
     @property
     def velocity(self):
         return self.magnitude/self.dt
-    
-    # @start.setter
-    # def start(self, start):
-    #     self._start = start
-    #     if all(self._end.xyz):
-    #         self._mpa = self.start_end2mpa(self._start, self._end)
-    #     else:
-    #         self._end.xyz = tuple((0,0,0) * self._end.spaceUnit)
-    #         self._mpa = self.start_end2mpa(self._start, self._end)
-    
-    # @end.setter
-    # def end(self, end):
-    #     self._end = end
-    #     if all(self._start.xyz):
-    #         self._mpa = self.start_end2mpa(self._start, self._end)
-    #     else:
-    #         self._start.xyz = tuple((0,0,0) * self._start.spaceUnit)
-    #         self._mpa = self.start_end2mpa(self._start, self._end)
-        
-    # @mpa.setter
-    # def mpa(self, mpa):
-    #     self._mpa = mpa
-    #     if all(self._start.xyz):
-    #         self._end.xyz = self.start_mpa2end(self._start, self._mpa)
-    #     elif all(self._end.xyz):
-    #         self._start = self.end_mpa2start(self._end, self._mpa)
-    #     else:
-    #         self._start.xyz = tuple((0,0,0) * self._start.spaceUnit)
-    #         self._end.xyz = self.start_mpa2end(self._start, self._mpa)            
-                
-    # def start_mpa2end(self, start, mpa):
-    #     return tuple(ureg.Quantity.from_list(list(start.xyz)) +
-    #                  ureg.Quantity.from_list(list(point().spherical2cartesian(mpa))))
-    
-    # def end_mpa2start(self, end, mpa):
-    #      return tuple(ureg.Quantity.from_list(list(end.xyz)) +
-    #                  ureg.Quantity.from_list(list(point().spherical2cartesian(mpa))))
     
     def start_end2mpa(self, start, end):
         xyz = end.xyz - start.xyz
