@@ -10,51 +10,17 @@ import pint_pandas
 ureg = pint.UnitRegistry()
 Q_ = ureg.Quantity
 
-                 
-class point:
-    
-    def __init__(self,  xyz = [None, None, None], rpa = (None, None, None), 
-                 t = datetime.datetime.now(), n = None, 
-                 spaceUnit = 'meter', angle_measure = 'radian'):
-        self._xyz= Q_(xyz, spaceUnit)
+class Point:
+    def __init__(self, x, y, z, 
+                 spaceUnit = 'meter', t = datetime.datetime.now(), n = None):
+
+        self._xyz = Q_([x,y,z], spaceUnit)
         self._t = t
         self._n = n
-        if self.chk4input(rpa) and self.chk4input(xyz):
-            raise Exception("Two inputs where one was expected. rpa will be ignored")
-        elif self.chk4input(rpa):
-            self._xyz = self.spherical2cartesian(rpa, spaceUnit, angle_measure)
-            
-    def __eq__(self, other):
-        if type(other) == point:    
-            if all(self.xyz == other.xyz) and self.t == other.t and self.n == other.n:
-                return True
-            else:
-                return False
-        else: 
-            raise Exception("cannot compare {other_type} to {self_type}".format(
-                other_type = type(other), self_type = type(self)))
-    
-    def __add__(self, other):
-        if  isinstance(other, point):
-            return vector(start = self, end = other)
-        elif isinstance(other, vector):
-            xyz = self.xyz + (other.end.xyz - other.start.xyz)
-            return point(xyz = xyz.magnitude, spaceUnit = xyz.units)
-        # add dxyz and dmpa
-        else:
-            raise Exception("cannot add {other_type} to {self_type}".format(
-                other_type = type(other), self_type = type(self)))
-    
-    def __sub__(self, other):
-        if  type(other) == point:
-            return vector(start = other, end = self)
-        elif type(other) == vector:
-            xyz = self.xyz - (other.end.xyz - other.start.xyz)
-            return point(xyz = xyz.magnitude, spaceUnit = xyz.units)
-        #  add  dxyz and dmpa
-        else:
-            raise Exception("cannot subtract {other_type} from {self_type}".format(
-                other_type = type(other), self_type = type(self)))
+        
+    @property
+    def xyz(self):
+        return self._xyz
     
     @property
     def x(self):
@@ -67,10 +33,6 @@ class point:
     @property
     def z(self):
         return self._xyz[2]
-    
-    @property
-    def xyz(self):
-        return self._xyz
     
     @property
     def radius(self):
@@ -86,7 +48,7 @@ class point:
     
     @property
     def rpa(self):
-        return self.cartesian2spherical(self._xyz.magnitude, self._xyz.units)
+        return self._cartesian2spherical(self._xyz)
     
     @property
     def t(self):
@@ -99,9 +61,41 @@ class point:
     @property 
     def spaceUnit(self):
         return self._xyz.units
-      
-    def cartesian2spherical(self, xyz, spaceUnit):
-        x, y, z = Q_(xyz, spaceUnit)
+    
+    @classmethod
+    def _from_xyz(cls, xyz, t = datetime.datetime.now(), n = None):
+        self = cls.__new__(cls)
+        self._xyz = xyz
+        self._t = t
+        self._n = n
+        return self
+    
+    @classmethod
+    def from_spherical(cls, r, θ, ρ, spaceUnit = 'meter', angle_measure = 'radian',
+                 t = datetime.datetime.now(), n = None):
+        self = cls.__new__(cls)
+        self._xyz = self.spherical2cartesian(r, θ, ρ, spaceUnit = spaceUnit, 
+                                             angle_measure = angle_measure)
+        self._t = t
+        self._n = n
+        return self
+    
+    @classmethod
+    def _from_spherical(cls, rpa, t = datetime.datetime.now(), n = None):
+        self = cls.__new__(cls)
+        self._xyz = self._spherical2cartesian(rpa)
+        self._t = t
+        self._n = n
+        return self
+    
+    @staticmethod
+    def cartesian2spherical(x, y, z, spaceUnit = 'meter'):
+        xyz = Q_([x,y,z], spaceUnit)
+        return Point._cartesian2spherical(xyz)
+    
+    @staticmethod
+    def _cartesian2spherical(xyz):
+        x, y, z = xyz
         radius = np.sqrt(x**2 + y**2 + z**2)
         if radius == 0:
             return (radius, Q_([0,0],'radian'))
@@ -112,104 +106,86 @@ class point:
             azimuthal_angle = np.arctan2(y,x)
         else:
             azimuthal_angle = np.arctan2(y,x) + 2 * np.pi * ureg('radians')
-        #azimuthal_angle = np.arcsin(y/(radius*np.sin(polar_angle)))
-        #azimuthal_angle = np.arctan(y/x)
         return (radius, Q_([polar_angle.magnitude, azimuthal_angle.magnitude], 'radian'))
     
-    def spherical2cartesian(self, rpa, spaceUnit, angle_measure):
-        radius = Q_(rpa[0], spaceUnit)
-        polar_angle, azimuthal_angle = Q_([rpa[1],rpa[2]], angle_measure)
+    @staticmethod
+    def spherical2cartesian(r, θ, ρ, spaceUnit = 'meter', angle_measure = 'radian'):
+        rpa = (Q_(r, spaceUnit), Q_([θ, ρ], angle_measure))
+        return Point._spherical2cartesian(rpa)
+        
+    @staticmethod
+    def _spherical2cartesian(rpa):
+        radius = rpa[0]
+        polar_angle, azimuthal_angle = rpa[1]
         x = radius * np.sin(polar_angle) * np.cos(azimuthal_angle)
         y = radius * np.sin(polar_angle) * np.sin(azimuthal_angle)
         z = radius * np.cos(polar_angle)
-        return Q_([x.magnitude, y.magnitude ,z.magnitude],spaceUnit)
- 
-    def chk4input(self, tuple_in):
-        return not any(map(lambda x: x is None, tuple_in))
-
-
-class vector:
-    def __init__(self, start = point(), end = point()):
-        self._start = start
-        self._end = end
+        return Q_.from_list([x, y, z])
+            
+    def __repr__(self):
+        return "<{0.__class__.__name__} (x = {0.x}, y = {0.y}, z = {0.z})>".format(self)
         
     def __eq__(self, other):
-        if  type(other) == vector:
-            if self.start == other.start and self.end == other.end:
+        if isinstance(other, Point):    
+            if all(self.xyz == other.xyz) and self.t == other.t and self.n == other.n:
                 return True
             else:
                 return False
-        else:
-            raise Exception("cannot compare {other_type} to {self_type}".format(
-                other_type = type(other), self_type = type(self)))
+        else: 
+            raise TypeError("cannot compare {0.__class__.__name__} to {1.__class__.__name__}"
+                            .format(other, self))
     
     def __add__(self, other):
-        if type(other) == vector:
-            end = self.end + (other.end - other.start)
-            return vector(start = self.start, end = end)
+        if  isinstance(other, Point):
+            return Vector(start = self, end = other)
+        elif isinstance(other, Vector):
+            xyz = self.xyz + other.dxdydz
+            return Point._from_xyz(xyz)
         else:
-            raise Exception("cannot add {other_type} to {self_type}".format(
-                other_type = type(other), self_type = type(self)))
-        
+            raise TypeError("cannot add {0.__class__.__name__} to {1.__class__.__name__}"
+                            .format(other, self))
+    
     def __sub__(self, other):
-        if type(other) == vector:
-            end = self.end - (other.end - other.start)
-            return vector(start = self.start, end = end)
+        if  isinstance(other, Point):
+            return Vector(start = other, end = self)
+        elif isinstance(other, Vector):
+            xyz = self.xyz - other.dxdydz
+            return Point._from_xyz(xyz)
         else:
-            raise Exception("cannot substract {other_type} from {self_type}".format(
-                other_type = type(other), self_type = type(self)))
+            raise TypeError("cannot subtract {0.__class__.__name__} from {1.__class__.__name__}"
+                            .format(other, self))
             
-    def dot_product(self, other):
-        return (self.dx * other.dx + self.dy * other.dy + self.dz * other.dz)
+    def translate(self, dx, dy, dz, spaceUnit = 'meter'):
+        dxdydz = Q_([dx, dy, dz], spaceUnit)
+        return Point._from_xyz(self.xyz + dxdydz)
     
-    def cross_product(self, other):
-        dx = self.dy * other.dz - self.dz * other.dy
-        dy = self.dz * other.dx - self.dx * other.dz
-        dz = self.dx * other.dy - self.dy * other.dx
-        dxdydz = Q_.from_list([dx, dy, dz])
-        return self.dxdydz2vector(dxdydz)
+    def _translate(self, dxdydz):
+        return Point._from_xyz(self.xyz + dxdydz)
     
-    def normalize(self):
-        dxdydz = self.dxdydz/self.magnitude
-        return self.dxdydz2vector(dxdydz, start = self.start)
+    def translate_mpa(self, m, θ, ρ, spaceUnit = 'meter', angle_measure = 'radian'):
+        dxdydz = Point.spherical2cartesian(m, θ, ρ, spaceUnit = spaceUnit, 
+                                        angle_measure = angle_measure)
+        return Point._from_xyz(self.xyz + dxdydz)
     
-    def translate(self, start_point):
-        return self.dxdydz2vector(self.dxdydz, start_point = start_point)
-    
-    def translate2origin(self):
-        return self.translate(point(xyz = [0,0,0]))
-    
-    def dxdydz2vector(self,dxdydz, start_point = point(xyz = [0,0,0])):
-        return vector(start = start_point, 
-                      end = point(xyz = dxdydz.magnitude,
-                      spaceUnit = dxdydz.units))
-    
-    def mpa2vector(self, mpa, start_point = point(xyz = [0,0,0])):
-        rpa = (mpa[0].magnitude, mpa[1][0].magnitude, mpa[1][1].magnitude)
-        end_point = point(rpa = rpa, spaceUnit = mpa[0].units)
-        return vector(start = start_point, end = end_point)
+    def _translate_mpa(self, mpa):
+        dxdydz = Point._spherical2cartesian(mpa)
+        return Point._from_xyz(self.xyz + dxdydz)
+ 
 
-    @property
-    def mpa(self):
-        return self.start_end2mpa(self._start,self._end)
-    @property
-    def magnitude(self):
-        mpa = self.start_end2mpa(self._start,self._end)
-        return mpa[0]
-    @property
-    def polar_angle(self):
-        mpa = self.start_end2mpa(self._start,self._end)
-        return mpa[1][0]
-    @property
-    def azimuthal_angle(self):
-        mpa = self.start_end2mpa(self._start,self._end)
-        return mpa[1][1]
+class Vector:
+    def __init__(self, start, end):
+        self._start = start
+        self._end = end
+    
     @property
     def start(self):
         return self._start
     @property
     def end(self):
         return self._end
+    @property
+    def dxdydz(self):
+        return self.end.xyz - self.start.xyz
     @property
     def dx(self):
         return self._end.x - self._start.x
@@ -219,10 +195,20 @@ class vector:
     @property
     def dz(self):
         return self._end.z - self._start.z
-    
     @property
-    def dxdydz(self):
-        return self.end.xyz - self.start.xyz
+    def mpa(self):
+        dxdydz = self.end.xyz - self.start.xyz
+        mpa_ = Point._cartesian2spherical(dxdydz)
+        return mpa_
+    @property
+    def magnitude(self):
+        return self.mpa[0]
+    @property
+    def polar_angle(self):
+        return self.mpa[1][0]
+    @property
+    def azimuthal_angle(self):
+        return self.mpa[1][1]
     @property
     def dt(self):
         return (self._end.t - self._start.t).total_seconds() * ureg('seconds')
@@ -230,10 +216,72 @@ class vector:
     def velocity(self):
         return self.magnitude/self.dt
     
-    def start_end2mpa(self, start, end):
-        xyz = end.xyz - start.xyz
-        return point().cartesian2spherical(xyz.magnitude, xyz.units)
+    def __eq__(self, other):
+        if  type(other) == Vector:
+            if self.start == other.start and self.end == other.end:
+                return True
+            else:
+                return False
+        else:
+            raise TypeError("cannot compare {0.__class__.__name__} to {1.__class__.__name__}"
+                            .format(other, self))
+    
+    def __add__(self, other):
+        if type(other) == Vector:
+            end_point = Point._from_xyz(self.end.xyz + other.dxdydz)
+            return Vector(start = self.start, end = end_point)
+        else:
+            raise TypeError("cannot add {0.__class__.__name__} to {1.__class__.__name__}"
+                            .format(other, self))
+        
+    def __sub__(self, other):
+        if type(other) == Vector:
+            end_point = Point._from_xyz(self.end.xyz - other.dxdydz)
+            return Vector(start = self.start, end = end_point)
+        else:
+            raise TypeError("cannot substract {0.__class__.__name__} from {1.__class__.__name__}"
+                            .format(other, self))
+    def __repr__(self):
+        return "<{0.__class__.__name__} (dx = {0.dx}, dy = {0.dy}, dz = {0.dz})>".format(self)
 
+            
+    def dot_product(self, other):
+        return (self.dx * other.dx + self.dy * other.dy + self.dz * other.dz)
+    
+    def cross_product(self, other):
+        dx = self.dy * other.dz - self.dz * other.dy
+        dy = self.dz * other.dx - self.dx * other.dz
+        dz = self.dx * other.dy - self.dy * other.dx
+        dxdydz = Q_.from_list([dx, dy, dz])
+        return Vector(start = Point(0,0,0), end = Point._from_xyz(dxdydz))
+    
+    def normalize(self):
+        dxdydz = self.dxdydz/self.magnitude
+        end_point = self.start._translate(dxdydz)
+        return Vector(start = self.start, end = end_point)
+    
+    def translate(self, dx, dy, dz, spaceUnit = 'meter'):
+        dxdydz = Q_([dx, dy, dz], spaceUnit)
+        return self._translate(dxdydz)
+        
+    def _translate(self, dxdydz):
+        start_point = self.start._translate(dxdydz)
+        end_point = self.end._translate(dxdydz)
+        return Vector(start = start_point, end = end_point)
+    
+    def translate_mpa(self, m, θ, ρ, spaceUnit = 'meter', angle_measure = 'radian'):
+        dxdydz = Point.spherical2cartesian(m, θ, ρ, spaceUnit = spaceUnit, 
+                                        angle_measure = angle_measure)
+        return self._translate(dxdydz)
+    
+    def _translate_mpa(self, mpa):
+        dxdydz = Point._spherical2cartesian(mpa)
+        return self._translate(dxdydz)
+    
+    def translate_to(self, new_start):
+        new_end = new_start._translate(self.dxdydz)
+        return Vector(start = new_start, end = new_end)
+    
 
 class trajectory:
     def __init__(self, fxyz = np.empty((1,5)), generation_datetime = datetime.datetime.now(),
